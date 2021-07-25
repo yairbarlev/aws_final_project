@@ -1,0 +1,101 @@
+import json
+import boto3
+import os
+import pickle
+import re
+import csv
+
+client = boto3.client(service_name='sagemaker-runtime')
+ENDPOINT_NAME = os.environ['ENDPOINT_NAME']
+
+def lambda_handler(event, context):
+    try:  
+                  
+        # Opening JSON file and loading the data 
+        # into the variable data 
+        data = json.loads(json.dumps(event) )
+          
+        employee_data = data['emp_details'] 
+          
+        # now we will open a file for writing 
+        data_file = open('/tmp/data_file.csv', 'w') 
+          
+        # create the csv writer object 
+        csv_writer = csv.writer(data_file) 
+          
+        # Counter variable used for writing  
+        # headers to the CSV file 
+        count = 0
+          
+        for emp in employee_data: 
+            # Writing data of CSV file 
+            csv_writer.writerow(emp.values()) 
+          
+
+        data_file.close() 
+        #preparing to read from s3
+        # s3 = boto3.client('s3')        
+        # folder = 'hr'
+        # bucket = 'sagemaker-angular-project-2021'
+            
+         
+        data_file = open('/tmp/data_file.csv', 'rb') 
+        #run the model to get classifications 
+        result = client.invoke_endpoint(EndpointName=ENDPOINT_NAME, Body=data_file, ContentType='text/csv')
+        result_string = result['Body'].read().decode('utf-8')
+        #Split the result into a list of strings 
+        result_list_of_strings =  result_string.split(",")
+        
+
+         #Convert the list of strings into a list of numbers
+        #  result_list_of_numbers = []
+        #  for item in result_list_of_strings:
+        #      item = int(float(item))
+        #      result_list_of_numbers.append(item)
+            
+        return {
+            'statusCode': 200,
+            'isBase64Encoded':False,
+            'body': json.dumps(result_list_of_strings)
+        }
+
+    except Exception as err:
+        return {
+            'statusCode': 400,
+            'isBase64Encoded':False,
+            'body': 'Call Failed {0}'.format(err)
+        }
+
+
+
+
+
+
+# Test event (input): 
+
+# {
+#   "articles": [
+#     {
+#       "text": "West Ham have sacked manager Manuel Pellegrini after a 2-1 home defeat by Leicester City"
+#     },
+#     {
+#       "text": "Mr Trump shared a post from a user named @surfermom77"
+#     }
+#   ]
+# }
+
+
+# Test:Output 
+
+# Response:
+# {
+#   "statusCode": 200,
+#   "isBase64Encoded": false,
+#   "body": "[3, 1]"
+# }
+
+
+# The categories enumeration 
+# {0: 'business', 1: 'entertainment', 2: 'politics', 3: 'sport', 4: 'tech'}
+
+
